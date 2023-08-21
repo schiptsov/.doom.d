@@ -1,0 +1,971 @@
+# -*- mode: org; coding: utf-8; -*-
+#+TITLE: Emacs Configuration with my little biralo friend
+#+SUBTITLE: Literate programming (at least for emacs configuration)
+#+AUTHOR: <schiptsov@gmail.com>
+#+PROPERTY: header-args:emacs-lisp :tangle yes :comments link
+#+PROPERTY: header-args:elisp :exports code
+#+STARTUP: indent fold overview
+
+We are doing /declarative literate programming/, so do write everything down in plain English.
+
+The main principle is to /re-use/ and to indirectly /delegate/ compatibility concerns.
+
+/Doom Emacs/, being a rewrite of /Spacemacs/, has a lot of effort behind it. So, lets use it.
+
+/Doom Emacs/ developers created a consistent look with ~doom-themes~, so use it too.
+
+*Do not overconfigure*. /They/ have already done it. Just add a few bits here and there.
+
+Nesting is good, use it everywhere. A proper /shallow/ hierarchy has to /emerge/ out of a properly structured config (related notions being put together).
+
+One more time - DO NOT OVERCONFIGURE - you will break things instead of adding.
+
+There are a few handy macros added by doom, namely
+- ~load!~ for loading external ~.el~ files relative to this one
+- ~use-package!~ for configuring packages
+- ~add-load-path!~ for adding directories to the ~load-path~ where ~Emacs~ looks when
+  you load packages with ~require~ or ~use-package~
+- ~map!~ for binding new keys
+- ~after!~
+
+"Lazy loading" is a mess. Just do normal /waterfall/ (top-to-bottom) imperative crap.
+So themes must come /last/, after everything has been loaded.
+
+- I use DSLs (sets of macros) -- ~use-package~
+- I delegate tedious tasks to module maintainers -- ~straight.el~
+- I look how ~Spacemacs~ and ~Doom~ did it.
+- I learn by understanding other people's configs
+
+Essential ~use-package~ cheat sheet.
+- Do not set ~use-package-always-defer~ to ~t~
+- ~:defer~ means do not load /right now/, only create the /autoloads/.
+- ~:after~ means late in the /graph/ (at least in theory)
+- ~:after~ keyword that allows a fairly rich description of the /exact conditions/ when loading should occur.
+- ~:commands, :bind, :mode, :interpreter, or :hook~ (all of which imply ~:defer~).
+- ~:commands~ keyword, it creates autoloads for those commands and /defers/ loading of the module /until they are used/.
+- ~:bind~  defers loading of a package /until you actually use it/
+- ~:hook~ keyword allows adding functions onto package /hooks/
+- ~:after~ and ~:defer~ thus are orthogonal and could be used together
+
+[[https://github.com/melpa/melpa/tree/master/recipes]]
+
+#+TODO: org-mode ox-publish, exports, latex, pandoc, hugo
+
+* The first line
+#+BEGIN_SRC emacs-lisp :comments no
+  ;;; config.el -*- lexical-binding: t; coding: utf-8; -*-
+  (setq-default load-prefer-newer t)
+#+END_SRC
+* ob-async
+#+begin_src emacs-lisp
+(add-transient-hook! #'org-babel-execute-src-block
+					 (require 'ob-async))
+#+end_src
+* Encoding
+Make sure, even using obsolete functions, that we have 'utf-8' /everywhere/.
+#+BEGIN_SRC emacs-lisp
+(set-charset-priority 'unicode)
+(set-language-environment 'UTF-8)
+(prefer-coding-system 'utf-8-unix)
+(set-default-coding-systems 'utf-8-unix)
+(set-terminal-coding-system 'utf-8-unix)
+(setq default-buffer-file-coding-system 'utf-8)
+#+END_SRC
+* File Templates
+
+For some file types, we overwrite defaults in the [[file:./snippets][snippets]] directory, others
+need to have a template assigned.
+
+#+begin_src emacs-lisp
+(set-file-template! "\\.tex$" :trigger "__" :mode 'latex-mode)
+(set-file-template! "\\.org$" :trigger "__" :mode 'org-mode)
+#+end_src
+
+* Set-face hack
+This supposedly blocks "inheritance" of /face/ attributes.
+#+BEGIN_SRC emacs-lisp
+  ;; Underline line at descent position, not baseline position
+  (setq x-underline-at-descent-line t)
+
+  ;; No ugly button for checkboxes
+  (setq widget-image-enable nil)
+
+  ;; When we set a face, we take care of removing any previous settings
+  (defun set-face (face style)
+    "Reset a face and make it inherit style."
+    (set-face-attribute face nil
+     :foreground 'unspecified :background 'unspecified
+     :family     'unspecified :slant      'unspecified
+     :weight     'unspecified :height     'unspecified
+     :underline  'unspecified :overline   'unspecified
+     :box        'unspecified :inherit    style))
+#+END_SRC
+* Faces
+This is the vanilla Emacs way to set fonts properly.
+#+BEGIN_SRC emacs-lisp
+  (set-face-font 'default  (font-spec :family "SF Mono" :foundry "APPL" :weight 'light :size 22 :height 158))
+
+  (set-face-font 'fixed-pitch  (font-spec :family "SF Mono" :foundry "APPL" :weight 'light :size 22 :height 158))
+  (set-face-font 'fixed-pitch-serif (font-spec :family "SF Pro Display" :foundry "APPL" :weight 'light :size 22 :height 158))
+  (set-face-font 'variable-pitch (font-spec :family "SF Pro Text" :foundry "APPL" :weight 'light :size 22 :height 158))
+#+END_SRC
+* Variable-pitch mode
+It would be nice if we were able to make use of a serif version of the
+=variable-pitch= face. Since this doesn't already exist, let's create it.
+
+#+BEGIN_SRC emacs-lisp
+  (defface variable-pitch-serif
+      '((t (:family "serif")))
+      "A variable-pitch face with serifs."
+      :group 'basic-faces)
+#+END_SRC
+
+For ease of use, let's also set up an easy way of setting the ~:font~ attribute.
+
+#+BEGIN_SRC emacs-lisp
+  (defcustom variable-pitch-serif-font (font-spec :family "SF Pro Text")
+    "The font face used for `variable-pitch-serif'."
+    :group 'basic-faces
+    :set (lambda (symbol value)
+	   (set-face-attribute 'variable-pitch-serif nil :font value)
+	   (set-default-toplevel-value symbol value)))
+#+END_SRC
+* Mixed pitch
+Installation
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+(package! mixed-pitch)
+#+END_SRC
+Setup
+#+BEGIN_SRC emacs-lisp
+  (use-package! mixed-pitch
+    :defer t
+    :hook ((text-mode . mixed-pitch-mode)
+           (org-mode . mixed-pitch-mode)
+           (html-mode . mixed-pitch-mode)
+           (latex-mode . mixed-pitch-mode)
+           (markdown-mode . mixed-pitch-mode)
+           (gfm-mode . mixed-pitch-mode)
+           (nov-mode . mixed-pitch-mode)
+           (info-mode . mixed-pitch-mode))
+    :config
+    (variable-pitch-mode t))
+#+END_SRC
+* Ansi colours
+
+It's nice to see ANSI colour codes displayed, however we don't want to disrupt
+ANSI codes in Org src blocks.
+
+#+begin_src emacs-lisp
+(after! text-mode
+  (add-hook! 'text-mode-hook
+    (unless (derived-mode-p 'org-mode)
+      ;; Apply ANSI color codes
+      (with-silent-modifications
+        (ansi-color-apply-on-region (point-min) (point-max) t)))))
+#+end_src
+
+* Better defaults
+#+BEGIN_SRC emacs-lisp
+(setq inhibit-startup-screen t)
+(setq initial-scratch-message "")
+(setq inhibit-splash-screen t)
+(setq inhibit-startup-buffer-menu t)
+(setq inhibit-startup-message t)
+(setq inhibit-startup-echo-area-message t)
+
+(setq-default font-use-system-font t)
+(setq-default font-lock-maximum-decoration t)
+
+(setq-default sentence-end-double-space nil)
+
+(setq-default word-wrap t)
+
+(setq-default truncate-lines nil)
+
+(add-hook 'prog-mode-hook (lambda ()
+    		            (setq show-trailing-whitespace t)
+    		            (setq indicate-empty-lines t)))
+
+(setq-default tab-width 4)
+(setq-default fill-column 72)
+(set-fill-column 72)
+(auto-fill-mode t)
+#+END_SRC
+* Minor modes
+The modes that bundled with Emacs
+#+BEGIN_SRC emacs-lisp
+(global-highlight-changes-mode -1)
+
+(global-display-fill-column-indicator-mode -1)
+
+(global-prettify-symbols-mode t)
+
+(global-visual-line-mode t)
+(global-hl-line-mode t)
+
+(global-subword-mode t)
+
+(show-paren-mode t)
+(transient-mark-mode t)
+
+(setq-default electric-indent-chars '(?\n ?\^?))
+(electric-pair-mode t)
+(electric-indent-mode t)
+
+(delete-selection-mode t)
+
+(abbrev-mode t)
+(setq save-abbrevs 'silently)
+(bind-key "M-/" 'hippie-expand)
+#+END_SRC
+* newline-and-indent
+#+BEGIN_SRC emacs-lisp
+(global-set-key (kbd "RET") 'newline-and-indent)
+#+END_SRC
+* Line Numbers
+I absolutely do not want any line numbers in Emacs.
+They are redundant and waste the precious space.
+
+#+BEGIN_SRC emacs-lisp
+  (setq-default display-line-numners nil)
+  (setq display-line-numbers-type nil)
+  (setq doom-line-numbers-style nil)
+
+  (global-display-line-numbers-mode -1)
+#+END_SRC
+*
+* Socks5
+Lets try it at least.
+#+BEGIN_SRC emacs-lisp
+(setq-default url-gateway-method 'socks)
+(setq-default socks-server '("Tor" "127.0.0.1" 9050 5))
+(setq-default socks-noproxy '("127.0.0.1"))
+#+END_SRC
+* Never lose your work again
+Never lose your writing again.
+Requires a modern Emacs.
+#+BEGIN_SRC emacs-lisp
+  (use-package! emacs
+  :custom
+  (auto-save-default t)
+  (make-backup-files t)
+  (backup-by-copying t)
+  (version-control t)
+  (delete-old-versions t)
+  (create-lockfiles t)
+  (auto-save-visited-mode t)
+  :config
+  (defun save-all ()
+    (interactive)
+    (save-some-buffers t))
+
+  (add-hook 'focus-out-hook #'save-all))
+#+END_SRC
+* Savehist
+#+BEGIN_SRC emacs-lisp
+  (use-package! savehist
+    :config
+    (savehist-mode t))
+#+END_SRC
+* Nyan biralo
+WARNING, MIND DUMBING CONTENT INSIDE.
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+    (package! nyan-mode)
+#+END_SRC
+#+BEGIN_SRC emacs-lisp
+  (use-package! nyan-mode
+    :config
+    (setq nyan-animate-nyancat t)
+    (setq nyan-wavy-trail t)
+    (nyan-mode t))
+#+END_SRC
+* Guru-mode
+Installation
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+(package! guru-mode)
+#+END_SRC
+This reinforces good practices of using the proper classic key bindings.
+#+BEGIN_SRC emacs-lisp
+  (use-package! guru-mode
+    :diminish t
+    :config
+    (guru-global-mode t))
+#+END_SRC
+* showkey.el
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+  (package! showkey)
+#+END_SRC
+#+BEGIN_SRC emacs-lisp
+    (use-package! showkey
+      :defer t)
+#+END_SRC
+* Diminish
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+    (package! diminish)
+#+END_SRC
+
+* Selection
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+(package! xclip)
+#+END_SRC
+#+BEGIN_SRC emacs-lisp
+  (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING))
+
+  (setq select-enable-clipboard t)
+  (setq select-enable-primary t)
+
+  (use-package! xclip
+    :config
+    (xclip-mode t))
+#+END_SRC
+* Security
+** Pinentry
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+    (package! pinentry)
+#+END_SRC
+#+BEGIN_SRC emacs-lisp
+(use-package! pinentry
+  :config
+  (pinentry-start))
+#+END_SRC
+** EPG
+#+BEGIN_SRC emacs-lisp
+(use-package! epg
+  :config
+  (setq epg-pinentry-mode 'loopback)
+  (setq epa-file-cache-passphrase-for-symmetric-encryption t)
+  (setq epa-file-select-keys nil)
+  (setq epg-gpg-program "gpg"))
+#+END_SRC
+** Auth source
+#+BEGIN_SRC emacs-lisp
+  (use-package! auth-source
+    :config
+    (setq auth-sources '("~/.authinfo.gpg")
+	  auth-source-cache-expiry nil))
+#+END_SRC
+** EPA-file
+#+BEGIN_SRC emacs-lisp
+(use-package! epa-file
+  :config
+  (epa-file-enable))
+#+END_SRC
+* Personification
+#+BEGIN_SRC emacs-lisp
+(setq user-full-name "Ln Gnmn"
+      user-mail-address "lngnmn2@yahoo.com")
+
+(setq epa-file-encrypt-to "B5BCA34F13278C5B")
+#+END_SRC
+* org-mode
+Use a newer version than built in.
+
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+(package! org-mode)
+#+END_SRC
+Load it early
+#+BEGIN_SRC emacs-lisp
+(require 'org)
+#+END_SRC
+** Org faces
+#+BEGIN_SRC emacs-lisp
+    (after! org
+      (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
+      (set-face-attribute 'org-link nil :inherit 'fixed-pitch)
+      (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
+      (set-face-attribute 'org-block nil :inherit 'fixed-pitch)
+      (set-face-attribute 'org-date nil :inherit 'fixed-pitch)
+      (set-face-attribute 'org-special-keyword nil :inherit 'fixed-pitch))
+#+END_SRC
+** org-modern
+Installation
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+    (package! valign)
+    (package! org-modern)
+#+END_SRC
+Setup
+#+BEGIN_SRC emacs-lisp
+    (use-package! valign
+      :defer t
+      :after org
+      :hook ((markdown-mode org-mode) . valign-mode))
+
+  (use-package! org-modern
+    :defer t
+    :after org
+    :hook (org-mode . org-modern-mode)
+    :init
+    (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
+    :config
+    (setq
+     ;; Edit settings
+     org-auto-align-tags nil
+     org-tags-column 0
+     org-catch-invisible-edits 'show-and-error
+     org-special-ctrl-a/e t
+     org-insert-heading-respect-content t
+     ;; Org styling, hide markup etc.
+     org-hide-emphasis-markers t
+     org-pretty-entities t
+     org-ellipsis "…"))
+#+END_SRC
+
+** ox-hugo
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+(package! ox-hugo)
+#+END_SRC
+#+BEGIN_SRC emacs-lisp
+(use-package! ox-hugo
+  :after ox)
+  #+END_SRC
+* htmlize command
+
+Why not have a command to htmlize files? This is basically a little test of my
+engrave-faces package because it somehow seems to work without a GUI, while the
+htmlize package doesn't.
+
+#+begin_src emacs-lisp :tangle packages.el
+  (package! engrave-faces)
+  (package! highlight-numbers)
+  (package! highlight-quoted)
+#+end_src
+cli.el
+#+begin_src emacs-lisp :tangle cli.el :noweb-ref none
+(defcli! htmlize (file)
+  "Export a FILE buffer to HTML."
+
+  (print! "Htmlizing %s" file)
+
+  (doom-initialize)
+  (require 'highlight-numbers)
+  (require 'highlight-quoted)
+  (require 'rainbow-delimiters)
+  (require 'engrave-faces-html)
+
+  ;; Lighten org-mode
+  (when (string= "org" (file-name-extension file))
+    (setcdr (assoc 'org after-load-alist) nil)
+    (setq org-load-hook nil)
+    (require 'org)
+    (setq org-mode-hook nil)
+    (add-hook 'engrave-faces-before-hook
+              (lambda () (if (eq major-mode 'org-mode)
+                        (org-show-all)))))
+
+  (engrave-faces-html-file file))
+#+end_src
+* org-export
+Generic export to all known formats
+#+BEGIN_SRC emacs-lisp
+(after! org (setq org-html-head-include-scripts t
+                  org-export-with-toc nil
+                  org-export-with-author t
+                  org-export-headline-levels 5
+                  org-export-with-drawers nil
+                  org-export-with-email t
+                  org-export-with-footnotes t
+                  org-export-with-sub-superscript t
+                  org-export-with-latex t
+                  org-export-with-section-numbers nil
+                  org-export-with-properties nil
+                  org-export-with-smart-quotes t
+                  org-export-backends '(pdf ascii html latex odt md pandoc)))
+#+END_SRC
+* org-publish (my crappy notes)
+Publishing to static html
+#+BEGIN_SRC emacs-lisp
+(after! org
+  (require 'ox-publish)
+  (setq org-publish-project-alist
+      '(("orgfiles"
+         :base-directory "~/Pages/"
+         :base-extension "org"
+         :publishing-directory "~/schiptsov.github.io/"
+         :publishing-function org-html-publish-to-html
+         :recursive t
+         :html-doctype "html5"
+         :html-html5-fancy t
+         :html-head-include-default-style t
+         :html-head-include-scripts t
+         :headline-levels 5
+         :section-numbers nil
+         :auto-preamble t          ; Enable auto preamble
+         :auto-postamble t         ; Enable auto postamble
+         :table-of-contents nil    ; Set this to "t" if you want a table of contents, set to "nil" disables TOC.
+         :with-author t
+         :with-creator t
+         :with-fixed-width t
+         :with-latex t
+         :with-date nil
+         :with-toc nil
+         :toc-levels 1             ; Just the default for this project.
+         :auto-sitemap t           ; Generate sitemap.org
+         :sitemap-sort-files anti-chronologically ; https://orgmode.org/manual/Site-map.html
+         :sitemap-filename "index.org"  ; ... call it sitemap.org (it's the default)...
+         :sitemap-title "Org Notes"         ; ... with title 'Sitemap'.
+         :html-link-home "index.html"
+         :author "<schiptsov@gmail.com>"
+         :html-head "
+<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">
+<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>
+<link href=\"https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300&display=swap\" rel=\"stylesheet\">
+<link href=\"https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300&display=swap\" rel=\"stylesheet\">
+<link href=\"https://fonts.googleapis.com/css2?family=Noto+Serif:wght@300&display=swap\" rel=\"stylesheet\">
+<style>
+font-family: 'Noto Serif', serif;
+font-family: 'Noto Sans', sans-serif;
+font-family: 'Source Code Pro', monospace;
+</style>
+<script src=\"https://polyfill.io/v3/polyfill.min.js?features=es6\"></script>
+<script type=\"text/javascript\" id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\"></script>
+<link rel='stylesheet' type='text/css' href='/css/main.css'/>"
+         :html-preable t
+         )
+        ("images"
+         :base-directory "~/Pages/images/"
+         :base-extension "jpg\\|gif\\|png"
+         :publishing-directory "~/schiptsov.github.io/images/"
+         :publishing-function org-publish-attachment
+         )
+        ("website" :components ("orgfiles" "images")))))
+#+END_SRC
+* undo-tree
+#+BEGIN_SRC emacs-lisp
+(use-package! undo-tree
+  :config
+  ;; Each node in the undo tree should have a timestamp.
+  (setq undo-tree-visualizer-timestamps t)
+  ;; Show a diff window displaying changes between undo nodes.
+  (setq undo-tree-visualizer-diff t)
+  ;; Always have it on
+  (global-undo-tree-mode))
+  #+END_SRC
+* swiper
+#+BEGIN_SRC emacs-lisp
+(use-package! swiper
+  :config
+  (global-set-key (kbd "C-s") 'swiper-isearch)
+  (global-set-key (kbd "C-r") 'swiper-backward))
+#+END_SRC
+
+* company
+Arguably better than pos-frame
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+(package! company-box)
+#+END_SRC
+Because ~pos-frame~ is broken with the ~variable-pitch-mode~
+#+begin_src emacs-lisp
+  (after! company
+        (setq company-idle-delay 0.5
+              company-minimum-prefix-length 2)
+        (setq company-show-numbers nil))
+
+  (setq-default history-length 1000)
+  (setq-default prescient-history-length 1000)
+
+  (set-company-backend!
+    '(text-mode
+      org-mode
+      markdown-mode
+      gfm-mode)
+    '(:seperate
+      company-ispell
+      company-files
+      company-math
+      company-yasnippet))
+
+   (use-package! company-box
+     :hook (company-mode . company-box-mode)
+     :config
+     (setq company-box-show-single-candidate t))
+#+end_src
+
+* LSP support in ~src~ blocks
+Now, by default, LSPs don't really function at all in ~src~ blocks.
+#+begin_src emacs-lisp
+(cl-defmacro lsp-org-babel-enable (lang)
+  "Support LANG in org source code block."
+  (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
+         (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+    `(progn
+       (defun ,intern-pre (info)
+         (let ((file-name (->> info caddr (alist-get :file))))
+           (unless file-name
+             (setq file-name (make-temp-file "babel-lsp-")))
+           (setq buffer-file-name file-name)
+           (lsp-deferred)))
+       (put ',intern-pre 'function-documentation
+            (format "Enable lsp-mode in the buffer of org source block (%s)."
+                    (upcase ,lang)))
+       (if (fboundp ',edit-pre)
+           (advice-add ',edit-pre :after ',intern-pre)
+         (progn
+           (defun ,edit-pre (info)
+             (,intern-pre info))
+           (put ',edit-pre 'function-documentation
+                (format "Prepare local buffer environment for org source block (%s)."
+                        (upcase ,lang))))))))
+(defvar org-babel-lang-list
+  '("go" "ocaml" "haskell" "rust" "scala" "erlang" "python" "ipython" "bash" "sh"))
+(dolist (lang org-babel-lang-list)
+  (eval `(lsp-org-babel-enable ,lang)))
+#+end_src
+* Fonts
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+(package! font-lock+)
+#+END_SRC
+Configuration
+#+BEGIN_SRC emacs-lisp
+  (use-package! font-lock+
+    :load-path "lisp")
+
+  (setq-default font-use-system-font t)
+  (setq-default font-lock-maximum-decoration t)
+  (global-font-lock-mode t)
+
+(setq doom-font (font-spec :family "SF Mono" :size 22 :weight 'light)
+      doom-big-font (font-spec :family "SF Mono" :size 36)
+      doom-variable-pitch-font (font-spec :family "SF Pro Text" :size 22 :weight 'light)
+      doom-unicode-font (font-spec :family "Fira Mono" :weight 'light)
+      doom-serif-font (font-spec :family "SF Pro Display" :weight 'light))
+#+END_SRC
+* Theme
+#+BEGIN_SRC emacs-lisp
+(setq doom-theme 'doom-nord)
+
+(use-package! doom-themes
+    :config
+    ;; Global settings (defaults)
+    (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
+	  doom-themes-enable-italic t) ; if nil, italics is universally disabled
+    (load-theme 'doom-nord t))
+
+(solaire-global-mode +1)
+#+END_SRC
+* Theme magic
+These autistic nerds are phenomenal!
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+(package! theme-magic)
+#+END_SRC
+
+With all our fancy Emacs themes, my terminal is missing out!
+#+begin_src emacs-lisp :tangle packages.el
+(package! theme-magic :pin "844c4311bd26ebafd4b6a1d72ddcc65d87f074e3")
+#+end_src
+
+This operates using =pywal=, which is present in some repositories, but most
+reliably installed with =pip=.
+#+begin_src shell :eval no :tangle (if (executable-find "wal") "no" "setup.sh")
+sudo python3 -m pip install pywal
+#+end_src
+
+Theme magic takes a look at a number of faces, the saturation levels, and colour
+differences to try to cleverly pick eight colours to use. However, it uses the
+same colours for the light variants, and doesn't always make the best picks.
+Since we're using =doom-themes=, our life is a little easier and we can use the
+colour utilities from Doom themes to easily grab sensible colours and generate
+lightened versions --- let's do that.
+
+#+begin_src emacs-lisp
+(use-package! theme-magic
+  :commands theme-magic-from-emacs
+  :config
+  (defadvice! theme-magic--auto-extract-16-doom-colors ()
+    :override #'theme-magic--auto-extract-16-colors
+    (list
+     (face-attribute 'default :background)
+     (doom-color 'error)
+     (doom-color 'success)
+     (doom-color 'type)
+     (doom-color 'keywords)
+     (doom-color 'constants)
+     (doom-color 'functions)
+     (face-attribute 'default :foreground)
+     (face-attribute 'shadow :foreground)
+     (doom-blend 'base8 'error 0.1)
+     (doom-blend 'base8 'success 0.1)
+     (doom-blend 'base8 'type 0.1)
+     (doom-blend 'base8 'keywords 0.1)
+     (doom-blend 'base8 'constants 0.1)
+     (doom-blend 'base8 'functions 0.1)
+     (face-attribute 'default :foreground))))
+#+end_src
+
+* Modeline
+#+BEGIN_SRC emacs-lisp
+  (use-package! hide-mode-line
+    :config
+    (hide-mode-line-mode t))
+#+END_SRC
+* Auto activating snippets
+
+Sometimes pressing =TAB= is just too much.
+#+begin_src emacs-lisp :tangle packages.el
+(package! aas :recipe (:host github :repo "ymarco/auto-activating-snippets")
+  :pin "e92b5cffa4e87c221c24f3e72ae33959e1ec2b68")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! aas
+  :commands aas-mode)
+#+end_src
+
+* Mixed pitch
+
+#+begin_quote
+From the =:ui zen= module.
+#+end_quote
+
+We'd like to use mixed pitch in certain modes. If we simply add a hook, when
+directly opening a file with (a new) Emacs =mixed-pitch-mode= runs before UI
+initialisation, which is problematic. To resolve this, we create a hook that
+runs after UI initialisation and both
++ conditionally enables =mixed-pitch-mode=
++ sets up the mixed pitch hooks
+
+#+begin_src emacs-lisp
+(defvar mixed-pitch-modes '(org-mode LaTeX-mode markdown-mode gfm-mode Info-mode)
+  "Modes that `mixed-pitch-mode' should be enabled in, but only after UI initialisation.")
+(defun init-mixed-pitch-h ()
+  "Hook `mixed-pitch-mode' into each mode in `mixed-pitch-modes'.
+Also immediately enables `mixed-pitch-modes' if currently in one of the modes."
+  (when (memq major-mode mixed-pitch-modes)
+    (mixed-pitch-mode 1))
+  (dolist (hook mixed-pitch-modes)
+    (add-hook (intern (concat (symbol-name hook) "-hook")) #'mixed-pitch-mode)))
+(add-hook 'doom-init-ui-hook #'init-mixed-pitch-h)
+#+end_src
+
+As mixed pitch uses the variable =mixed-pitch-face=, we can create a new function
+to apply mixed pitch with a serif face instead of the default (see the
+subsequent face definition). This was created for writeroom mode.
+
+#+begin_src emacs-lisp
+(autoload #'mixed-pitch-serif-mode "mixed-pitch"
+  "Change the default face of the current buffer to a serifed variable pitch, while keeping some faces fixed pitch." t)
+
+(setq! variable-pitch-serif-font (font-spec :family "SF Pro Text" :size 22))
+
+(after! mixed-pitch
+  (setq mixed-pitch-set-height t)
+  (set-face-attribute 'variable-pitch-serif nil :font variable-pitch-serif-font)
+  (defun mixed-pitch-serif-mode (&optional arg)
+    "Change the default face of the current buffer to a serifed variable pitch, while keeping some faces fixed pitch."
+    (interactive)
+    (let ((mixed-pitch-face 'variable-pitch-serif))
+      (mixed-pitch-mode (or arg 'toggle)))))
+#+end_src
+
+Now, as Harfbuzz is currently used in Emacs, we'll be missing out on the
+following Alegreya ligatures:
+#+begin_center
+ff /ff/ ffi /ffi/ ffj /ffj/ ffl /ffl/
+fft /fft/ fi /fi/ fj /fj/ ft /ft/
+Th /Th/
+#+end_center
+
+Thankfully, it isn't to hard to add these to the ~composition-function-table~.
+#+begin_src emacs-lisp
+(set-char-table-range composition-function-table ?f '(["\\(?:ff?[fijlt]\\)" 0 font-shape-gstring]))
+(set-char-table-range composition-function-table ?T '(["\\(?:Th\\)" 0 font-shape-gstring]))
+#+end_src
+
+* Variable pitch serif font
+
+It would be nice if we were able to make use of a serif version of the
+=variable-pitch= face. Since this doesn't already exist, let's create it.
+
+#+begin_src emacs-lisp
+(defface variable-pitch-serif
+    '((t (:family "serif")))
+    "A variable-pitch face with serifs."
+    :group 'basic-faces)
+#+end_src
+
+For ease of use, let's also set up an easy way of setting the ~:font~ attribute.
+
+#+begin_src emacs-lisp
+(defcustom variable-pitch-serif-font (font-spec :family "SF Pro Text")
+  "The font face used for `variable-pitch-serif'."
+  :group 'basic-faces
+  :set (lambda (symbol value)
+         (set-face-attribute 'variable-pitch-serif nil :font value)
+         (set-default-toplevel-value symbol value)))
+#+end_src
+
+* Python
+#+begin_src emacs-lisp
+  (use-package! lsp-pyright
+    :config
+    (setq lsp-pyright-disable-language-service nil
+  	    lsp-pyright-disable-organize-imports nil
+  	    lsp-pyright-auto-import-completions t
+  	    lsp-pyright-use-library-code-for-types t))
+
+  (use-package! python
+    :hook (python-mode . lsp-deferred)
+    :config
+    (setq python-shell-interpreter "ipython"
+          python-shell-interpreter-args "-i --simple-prompt"
+          python-shell-prompt-detect-failure-warning nil))
+#+end_src
+* Email
+** mu4e
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-msg)
+#+end_src
+
+#+BEGIN_SRC emacs-lisp
+
+(use-package! mu4e
+  :defer t
+  :hook (mu4e-compose-mode . org-msg-mode)
+  :commands mu4e mu4e-compose-new
+  :init
+  (provide 'html2text) ; disable obsolete package
+  :config
+  (setq org-mu4e-convert-to-html t)
+  (setq mu4e-maildir "~/.Maildir")
+  (setq
+   mu4e-refile-folder "/Archive"
+   mu4e-trash-folder  "/Trash"
+   mu4e-sent-folder   "/Sent"
+   mu4e-drafts-folder "/Draft")
+  (setq mu4e-maildir-shortcuts
+        '(("/INBOX"   . ?i)
+          ("/Sent"    . ?s)
+          ("/Archive" . ?a)
+          ("/Trash"   . ?t)))
+
+  (setq mu4e-get-mail-command "mbsync -a -q"
+        mu4e-change-filenames-when-moving t)
+
+  (setq mu4e-compose-reply-to-address user-mail-address)
+
+  (setq mu4e-compose-signature
+    		"Ln Gnmn\nhttps://lngnmn2.github.io\n")
+
+  (setq mu4e-view-show-addresses t
+        mu4e-view-show-images t
+        mu4e-view-image-max-width 800
+        mu4e-view-use-gnus t)
+          ;; set mail user agent
+  (setq mail-user-agent 'mu4e-user-agent
+        message-mail-user-agent 'mu4e-user-agent)
+  (setq mu4e-update-interval nil
+        mu4e-sent-messages-behavior 'sent
+        mu4e-hide-index-messages t
+        ;; configuration for sending mail
+        message-send-mail-function #'smtpmail-send-it
+        smtpmail-stream-type 'starttls
+        message-kill-buffer-on-exit t) ; close after sending
+
+  (setq mu4e-context-policy 'ask-if-none
+        mu4e-compose-context-policy 'always-ask)
+
+  (setq user-mail-address "lngnmn2@yahoo.com"
+        user-full-name  "Ln Gnmn"
+        mu4e-compose-signature
+        (concat
+         "Ln Gnmn\n"
+         "https://lngnmn2.github.io/\n"))
+
+  (setq mu4e-compose-format-flowed t)
+  ;; (setq mu4e-sent-messages-behavior 'delete)
+  (setq mu4e-attachment-dir  "~/Downloads/")
+
+  ;; select the right sender email from the context.
+  (setq message-sendmail-envelope-from 'header)
+  (setq  mu4e-completing-read-function #'ivy-completing-read)
+  ;; no need to ask
+  (setq mu4e-confirm-quit nil
+        mu4e-headers-thread-single-orphan-prefix '("─>" . "─▶")
+        mu4e-headers-thread-orphan-prefix        '("┬>" . "┬▶ ")
+        mu4e-headers-thread-connection-prefix    '("│ " . "│ ")
+        mu4e-headers-thread-first-child-prefix   '("├>" . "├▶")
+        mu4e-headers-thread-child-prefix         '("├>" . "├▶")
+        mu4e-headers-thread-last-child-prefix    '("└>" . "╰▶")
+        ;; remove 'lists' column
+        mu4e-headers-fields
+        '((:human-date . 12)
+          (:flags . 6) ; 3 icon flags
+          (:from-or-to . 25)
+          (:subject)))
+  )
+
+(defun htmlize-and-send ()
+  "When in an org-mu4e-compose-org-mode message, htmlize and send it."
+  (interactive)
+  (when
+      (member 'org~mu4e-mime-switch-headers-or-body post-command-hook)
+    (org-mime-htmlize)
+    (org-mu4e-compose-org-mode)
+    (mu4e-compose-mode)
+    (message-send-and-exit)))
+
+;; This overloads the amazing C-c C-c commands in org-mode with one more function
+;; namely the htmlize-and-send, above.
+(add-hook 'org-ctrl-c-ctrl-c-hook #'htmlize-and-send t)
+
+;; smtpmail-send-it
+(setq smtpmail-default-smtp-server "smtp.mail.yahoo.com")
+
+(use-package! smtpmail
+  :defer t
+  :config
+  (setq gnutls-algorithm-priority "PFS")
+  (setq send-mail-function 'smtpmail-send-it
+        message-send-mail-function 'smtpmail-send-it)
+  (setq smtpmail-smtp-user "lngnmn2"
+        smtpmail-local-domain "yahoo.com"
+                ;;; smtpmail-starttls-credentials '(("smtp.mail.yahoo.com" 587 nil nil))
+                ;;; smtpmail-auth-credentials '(("lngnmn2@smtp.mail.yahoo.com" 587 "lngnmn2@yahoo.com" nil))
+        smtpmail-smtp-server "smtp.mail.yahoo.com"
+        starttls-use-gnutls t
+        smtpmail-stream-type 'starttls
+        smtpmail-smtp-service 587)
+
+  ;; don't keep message buffers around
+  (setq message-kill-buffer-on-exit t)
+  )
+#+END_SRC
+
+** org-msg
+#+BEGIN_SRC emacs-lisp
+   (use-package! org-msg
+     :defer t
+     :after org
+     :config
+     (setq org-msg-default-alternatives '((new	    . (text))
+                                    (reply-to-html	. (text))
+                                    (reply-to-text	. (text))))
+     (setq mail-user-agent 'mu4e-user-agent)
+     (setq org-msg-options "html-postamble:nil H:5 num:nil ^:{} toc:nil author:nil email:nil \\n:t"
+         org-msg-startup "hidestars indent inlineimages"
+         org-msg-greeting-fmt "\nHi%s,\n\n"
+         org-msg-recipient-names '(("lngnmn2@yahoo.com" . "Ln Gnmn"))
+         org-msg-greeting-name-limit 3
+
+         org-msg-convert-citation t
+         org-msg-signature "
+  ,#+begin_signature
+  --
+  Ln Gnmn,
+  /founder of karma-engineering.com/
+  ,#+end_signature")
+   )
+#+END_SRC
+* Focus
+These are not loaded, only compliled. Load manualy with ~M-x~.
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+    (package! focus)
+#+END_SRC
+~:commands~ implies ~:defer~
+#+BEGIN_SRC emacs-lisp
+  (use-package! focus
+    :commands (focus-mode focus-read-only-mode))
+#+END_SRC
+* The last line
+#+BEGIN_SRC emacs-lisp
+   ;;; config.el ends here
+#+END_SRC
