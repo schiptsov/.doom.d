@@ -955,7 +955,7 @@ For ease of use, let's also set up an easy way of setting the ~:font~ attribute.
   ,#+end_signature")
    )
 #+END_SRC
-* Focus
+* focus
 These are not loaded, only compliled. Load manualy with ~M-x~.
 #+BEGIN_SRC emacs-lisp :tangle packages.el
     (package! focus)
@@ -965,6 +965,95 @@ These are not loaded, only compliled. Load manualy with ~M-x~.
   (use-package! focus
     :commands (focus-mode focus-read-only-mode))
 #+END_SRC
+* writerroom
+#+begin_src emacs-lisp :tangle packages.el
+(package! writeroom-mode)
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! writeroom-mode
+  :commands writeroom-mode)
+#+end_src
+* w3m
+#+begin_src emacs-lisp :tangle packages.el
+(package! counsel-web)
+(package! xwwp :recipe '(:type git :host github :repo "canatella/xwwp"))
+(package! w3m)
+(package! google-this)
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(setq
+ browse-url-browser-function 'eww-browse-url ; Use eww as the default browser
+ shr-use-fonts  nil                          ; No special fonts
+ shr-use-colors nil                          ; No colours
+ shr-indentation 2                           ; Left-side margin
+ shr-width 72                                ; Fold text to 70 columns
+ eww-search-prefix "https://google.com/?q=")
+
+(setq eww-retrieve-command
+      '("chromium" "--headless" "--dump-dom"))
+
+(use-package! w3m
+  :commands (w3m w3m-browse-url)
+  :config
+  (setq w3m-use-cookies t)
+  (setq w3m-use-toolbar nil)
+  (setq w3m-use-tab-line nil)
+  (setq w3m-use-tab-menubar nil))
+
+(use-package! counsel-web
+  :after counsel
+  :config
+  (setq counsel-web-search-action #'eww-browse-url)
+  (setq counsel-web-engine 'google)
+  (setq counsel-web-search-alternate-action #'w3m)
+  (defvar counsel-web-map
+  (let ((map (make-sparse-keymap "counsel-web")))
+    (define-key map (kbd "w") #'counsel-web-suggest)
+    (define-key map (kbd "s") #'counsel-web-search)
+    (define-key map (kbd ".") #'counsel-web-thing-at-point)
+    map))
+  (global-set-key (kbd "C-c w") counsel-web-map))
+
+(use-package! xwwp
+  :commands (xwwp)
+  :custom
+   (setq xwwp-follow-link-completion-system 'ivy))
+
+ (defun google-suggest ()
+     "Search `w3m-search-default-engine' with google completion canditates."
+     (interactive)
+     (w3m-search w3m-search-default-engine
+		 (completing-read  "Google search: "
+				   (dynamic-completion-table
+				   'google-suggest-aux))))
+
+(defun google-suggest-aux (input)
+     (with-temp-buffer
+       (insert
+	(shell-command-to-string
+	 (format "w3m -dump_source %s"
+		 (shell-quote-argument
+		  (format
+		   "http://www.google.com/complete/search?hl=en&js=true&qu=%s"
+		   input)))))
+       (read
+	(replace-regexp-in-string "," ""
+				  (progn
+				    (goto-char (point-min))
+				    (re-search-forward "\(" (point-max) t 2)
+				    (backward-char 1)
+				    (forward-sexp)
+				    (buffer-substring-no-properties
+				     (1- (match-end 0)) (point)))))))
+
+(use-package! google-this
+  :diminish t
+  :config
+  (google-this-mode 1))
+
+#+end_src
 * The last line
 #+BEGIN_SRC emacs-lisp
    ;;; config.el ends here
