@@ -16,6 +16,12 @@ The main principle is to /re-use/ and to indirectly /delegate/ compatibility con
 
 *Do not overconfigure*. /They/ have already done it. Just add a few bits here and there.
 
+/The trick, William Potter, is not minding that it hurts/.
+
+The universal principles will work here even better, and will appear even more obvious. The trick is not to /over-configure/ by breaking /abstraction barriers/ and tweaking the internals, which will change at a whip day after tomorrow, and use only the stable public interfaces.
+
+Applying this principle will give you way better chances to survive frequent package upgrades. This is why the /declarative embedded DSLs are the best options/ -- we are staying at the level of high-level interfaces.
+
 Nesting is good, use it everywhere. A proper /shallow/ hierarchy has to /emerge/ out of a properly structured config (related notions being put together).
 
 One more time - DO NOT OVERCONFIGURE - you will break things instead of adding.
@@ -997,6 +1003,9 @@ These are not loaded, only compliled. Load manualy with ~M-x~.
 (use-package! w3m
   :commands (w3m w3m-browse-url)
   :config
+  (setq w3m-quick-start nil)
+  (setq w3m-display-mode 'plain)
+  (setq w3m-use-cookies t)
   (setq w3m-use-cookies t)
   (setq w3m-use-toolbar nil)
   (setq w3m-use-tab-line nil)
