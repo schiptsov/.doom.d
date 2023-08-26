@@ -1,30 +1,36 @@
-With &ldquo;Doom&rdquo; one *delegates* everything to the maintainers and only extends and augments the configuration. Otherwise everything will break very quickly, because it moves fast and is a subject to lots of changes at all levels (including the individual packages).
+With &ldquo;Doom&rdquo; one *delegates* everything to the maintainers and only extends and augments the configuration. Otherwise everything will break very quickly, because everything moves fast and break things &#x2013; it is subject to a lot of changes at all levels (including the individual packages).
 
-1.  use declarative embedded DSLs
-2.  use stable high-level interfaces
-3.  *respect the proper ADTs*
-4.  *do not /over-configure*
+So, the *principles* are:
+
+1.  use *declarative embedded DSLs*
+2.  use *stable high-level interfaces*
+3.  respect *the proper ADTs*
+4.  do not *over-configure*
 
 
 # The rant
 
-&ldquo;Doom&rdquo; is already bloated (but not as bloated as *Spacemacs) by doing an /over-configuration* and, what is worse &#x2013; *over-abstraction* (introducing unnecessary and redundant new abstractions, which is the root of all evil).
+&ldquo;Doom&rdquo; is already bloated (but not neatly as bloated as *Spacemacs) by doing an /over-configuration* and, what is worse &#x2013; *over-abstraction* (introducing unnecessary and redundant new abstractions, which is the root of all evil).
 
-The most deadly sin is *to break abstraction barriers* and use and rely on other module&rsquo;s *internals*, which are supposed to be hidden (and subject to change) and only the proper abstract exported interfaces being used.
+The most deadly sin is *to break abstraction barriers* and use and rely on other module *internals*, which are supposed to be hidden (and subject to change). Only the exported *proper abstract interfaces* must be used.
 
 Again, breaking abstraction barriers and not respecting ADTs is a way to a ruin.
 
-The way better concept is &ldquo;*extension methods&ldquo; of Scala /a proper way to extend without breaking existed interfaces* Well, we do not have these, but we could use the underlying principle.
+The way better concept is &ldquo;*extension methods&ldquo; of Scala3 &#x2013; /a proper way to extend without breaking existing interfaces* Well, we do not have these in Emacs Lisp, but we could use the *underlying principle* (which is &rdquo;only add, not modify&ldquo; and related to the universal notion of *immutability* which goes all the way back to math and molecular biology).
 
-But how can we peoperly extend *other people&rsquo;s code*? Well, by taking mode burden, doing more work and prepare and submit the patches.
+But how can we properly extend *other people&rsquo;s code*? Well, by *taking more burden, doing more work* and prepare and submit the patches to the maintainers.
 
-The *right way* (to take *more* burden) is this (remember, that a proper hierarchy should go straight down to `C` implementations, like `gnutls`, `libxml2`, `json`, or `tree-sitter`):
+The *right way* (yes, to take *more* burden) is this:
 
 -   study what are the &ldquo;core abstractions&rdquo; and interfaces of a *subsystem*
 -   is there this kind of abstraction already implemented in Emacs
 -   how could I improve or augment them it *right in Emacs*
 -   prepare and submit a *patch* (yes, do more work) for Emacs.
 -   when you need a better interface from *other modules* to the same
+
+Remember, that a proper *module hierarchy should be shallow* and each branch of a call graph must be short and go straight down to `C` implementations, like `gnutls`, `libxml2`, `json`, or `tree-sitter`).
+
+The same principle applies to high-level Lisp code &#x2013; one has to use provided high-level, like `completing-read`, etc. In shot - do what `vertico` and `margianlia` does just right.
 
 This is how to actually improve the things not just for oneself but for everyone. Lots of *ad-hoc* code from &ldquo;Doom&rdquo; could end up in Emacs.
 

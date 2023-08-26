@@ -30,7 +30,7 @@ The /right way/ (yes, to take /more/ burden) is this:
 
 Remember, that a proper /module hierarchy should be shallow/ and each branch of a call graph must be short and  go straight down to ~C~ implementations, like ~gnutls~, ~libxml2~, ~json~, or ~tree-sitter~).
 
-The same principle applies to high-level Lisp code -- one has to use provided high-level, like ~complete-read~
+The same principle applies to high-level Lisp code -- one has to use provided high-level, like ~completing-read~, etc. In shot - do what ~vertico~ and ~margianlia~ does just right.
 
 This is how to actually improve the things not just for oneself but for everyone. Lots of /ad-hoc/ code from "Doom" could end up in Emacs.
 
