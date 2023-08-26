@@ -372,6 +372,7 @@ Use a newer version than built in.
 Load it early
 #+BEGIN_SRC emacs-lisp
 (require 'org)
+(require 'ox)
 #+END_SRC
 ** Org faces
 #+BEGIN_SRC emacs-lisp
@@ -415,15 +416,24 @@ Setup
      org-pretty-entities t
      org-ellipsis "…"))
 #+END_SRC
+** ox-gfm
+#+begin_src emacs-lisp :tangle packages.el
+(package! ox-gfm)
+#+end_src
 
+#+begin_src emacs-lisp :tangle yes
+(use-package! ox-gfm
+  :after ox)
+#+end_src
 ** ox-hugo
 #+BEGIN_SRC emacs-lisp :tangle packages.el
 (package! ox-hugo)
 #+END_SRC
+
 #+BEGIN_SRC emacs-lisp
 (use-package! ox-hugo
   :after ox)
-  #+END_SRC
+#+END_SRC
 * htmlize command
 
 Why not have a command to htmlize files? This is basically a little test of my
@@ -475,7 +485,7 @@ Generic export to all known formats
                   org-export-with-section-numbers nil
                   org-export-with-properties nil
                   org-export-with-smart-quotes t
-                  org-export-backends '(pdf ascii html latex odt md pandoc)))
+                  org-export-backends '(pdf ascii html latex gfm odt md pandoc)))
 #+END_SRC
 * org-publish (my crappy notes)
 Publishing to static html
