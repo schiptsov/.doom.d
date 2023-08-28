@@ -596,6 +596,22 @@ Because ~pos-frame~ is broken with the ~variable-pitch-mode~
      (setq company-box-show-single-candidate t))
 #+end_src
 
+* Lua
+#+begin_src emacs-lisp :tangle packages.el
+(package! lua-mode)
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+  (use-package! lua-mode
+    :mode "\\.lua?\\'"
+    :hook (lua-mode . lsp-deferred)
+    :hook (lua-mode . (lambda ()
+                        (setq-local tab-width 2
+                                    indent-tabs-mode t)))
+    :init
+    (setq lsp-clients-lua-language-server-install-dir "/opt/lua-language-server")
+    (setq lua-default-application "luajit"))
+#+end_src
 * LSP support in ~src~ blocks
 Now, by default, LSPs don't really function at all in ~src~ blocks.
 #+begin_src emacs-lisp
