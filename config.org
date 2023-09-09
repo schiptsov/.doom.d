@@ -371,7 +371,20 @@ Use a newer version than built in.
 #+END_SRC
 Load it early
 #+BEGIN_SRC emacs-lisp
-(require 'org)
+(use-package org
+  :hook (org-mode . (lambda ()
+                      (set-face-background 'org-block 'unspecified) ;; fix
+                      (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
+                      (set-face-attribute 'org-link nil :inherit 'fixed-pitch)
+                      (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
+                      (set-face-attribute 'org-block nil :inherit 'fixed-pitch)
+                      (set-face-attribute 'org-date nil :inherit 'fixed-pitch)
+                      (set-face-attribute 'org-special-keyword nil
+                                          :inherit 'fixed-pitch)
+                      (mixed-pitch-mode t)
+                      (variable-pitch-mode t)))
+)
+
 (require 'ox)
 #+END_SRC
 ** Org faces
@@ -841,6 +854,13 @@ For ease of use, let's also set up an easy way of setting the ~:font~ attribute.
           python-shell-interpreter-args "-i --simple-prompt"
           python-shell-prompt-detect-failure-warning nil))
 #+end_src
+* Octave
+#+begin_src emacs-lisp
+(use-package! octave-mode
+;;  :straight '(:type built-in)
+  :mode ("\\.m\\'" . octave-mode)
+  :commands run-octave)
+#+end_src
 * Email
 ** mu4e
 #+begin_src emacs-lisp :tangle packages.el
@@ -1005,6 +1025,26 @@ These are not loaded, only compliled. Load manualy with ~M-x~.
 #+begin_src emacs-lisp :tangle yes
 (use-package! writeroom-mode
   :commands writeroom-mode)
+#+end_src
+* nov.el
+#+begin_src emacs-lisp :tangle packages.el
+(package! nov)
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+;; (add-to-list 'auto-mode-alist '("\\.epub\\'" . nov-mode))
+
+(use-package! nov
+  :mode "\\.epub\\'"
+  :hook (nov-mode . (lambda ()
+                      (visual-line-mode t)
+                      (visual-fill-column-mode t)
+                      (mixed-pitch-mode t)
+                      (variable-pitch-mode t)
+                      (focus-read-only-mode t)
+                      (hide-mode-line-mode t)))
+  :config
+  (setq nov-text-width 72))
 #+end_src
 * w3m
 #+begin_src emacs-lisp :tangle packages.el
