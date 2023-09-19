@@ -55,7 +55,6 @@ Essential ~use-package~ cheat sheet.
 
 [[https://github.com/melpa/melpa/tree/master/recipes]]
 
-#+TODO: org-mode ox-publish, exports, latex, pandoc, hugo
 
 * The first line
 #+BEGIN_SRC emacs-lisp :comments no
@@ -156,6 +155,43 @@ Setup
     :config
     (variable-pitch-mode t))
 #+END_SRC
+* string-edit-at-point
+#+begin_src emacs-lisp :tangle packages.el
+(package! string-edit-at-point)
+#+end_src
+* corfu
+#+begin_src emacs-lisp :tangle packages.el
+(package! corfu)
+#+end_src
+#+begin_src emacs-lisp
+(setq completion-styles '(orderless flex basic)
+      orderless-matching-styles '(orderless-initialism
+                                  orderless-literal
+                                  orderless-regexp))
+
+(use-package corfu
+  :hook (after-init . global-corfu-mode)
+  :custom
+  (corfu-preview-current t)
+  (corfu-auto-prefix 2)
+  (corfu-auto t))
+#+end_src
+* vertico
+#+begin_src emacs-lisp
+(use-package vertico
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+  :hook (rfn-eshadow-update-overlay . vertico-directory-tidy)
+ )
+#+end_src
+* consult
+#+begin_src emacs-lisp :tangle packages.el
+(package! consult-yasnippet)
+(package! embark-consult)
+#+end_src
+#+begin_src emacs-lisp
+(use-package consult-yasnippet
+  :bind ("M-g y" . consult-yasnippet))
+#+end_src
 * Ansi colours
 
 It's nice to see ANSI colour codes displayed, however we don't want to disrupt
@@ -169,7 +205,14 @@ ANSI codes in Org src blocks.
       (with-silent-modifications
         (ansi-color-apply-on-region (point-min) (point-max) t)))))
 #+end_src
-
+* eshell
+~git log -p >> #<buffer *log*>~
+#+begin_src emacs-lisp
+(use-package eshell
+  :hook (esh-mode . (lambda () (corfu-mode -1))) ;; should remove only auto
+  :hook (eshell-preoutput-filter-functions . ansi-color-filter-apply)
+  )
+#+end_src
 * Better defaults
 #+BEGIN_SRC emacs-lisp
 (setq inhibit-startup-screen t)
@@ -189,8 +232,13 @@ ANSI codes in Org src blocks.
 (setq-default truncate-lines nil)
 
 (add-hook 'prog-mode-hook (lambda ()
-    		            (setq show-trailing-whitespace t)
-    		            (setq indicate-empty-lines t)))
+                            (interactive)
+                            (show-paren-mode t)
+                            (transient-mark-mode t)
+                            (set-fill-column 72)
+                            (auto-fill-mode t)
+                            (setq show-trailing-whitespace t)
+                            (setq indicate-empty-lines t)))
 
 (setq-default tab-width 4)
 (setq-default fill-column 72)
@@ -224,6 +272,24 @@ The modes that bundled with Emacs
 (setq save-abbrevs 'silently)
 (bind-key "M-/" 'hippie-expand)
 #+END_SRC
+* Whitespace
+#+begin_src emacs-lisp
+(use-package whitespace
+  :diminish
+  :after doom-themes
+  :hook (after-init . global-whitespace-mode)
+  :custom
+  (whitespace-style
+   (quote
+    (face tabs spaces trailing space-before-tab newline indentation
+  empty space-after-tab space-mark tab-mark)))
+  :config
+  (set-face-background 'whitespace-empty 'unspecified) ;; fix
+  (set-face-background 'whitespace-hspace 'unspecified) ;; fix
+)
+
+(global-set-key (kbd "C-c w") #'whitespace-mode)
+#+end_src
 * newline-and-indent
 #+BEGIN_SRC emacs-lisp
 (global-set-key (kbd "RET") 'newline-and-indent)
@@ -239,13 +305,17 @@ They are redundant and waste the precious space.
 
   (global-display-line-numbers-mode -1)
 #+END_SRC
-*
 * Socks5
 Lets try it at least.
 #+BEGIN_SRC emacs-lisp
 (setq-default url-gateway-method 'socks)
 (setq-default socks-server '("Tor" "127.0.0.1" 9050 5))
 (setq-default socks-noproxy '("127.0.0.1"))
+
+(customize-set-variable 'url-proxy-services
+                        '(("http"  . "127.0.0.1:8118")
+                          ("https" . "127.0.0.1:9060")))
+
 #+END_SRC
 * Never lose your work again
 Never lose your writing again.
@@ -271,6 +341,12 @@ Requires a modern Emacs.
 #+BEGIN_SRC emacs-lisp
   (use-package! savehist
     :config
+    (setq history-delete-duplicates t)
+    (setq savehist-save-minibuffer-history 1)
+    (setq savehist-additional-variables
+          '(kill-ring
+            search-ring
+            regexp-search-ring))
     (savehist-mode t))
 #+END_SRC
 * Nyan biralo
@@ -373,7 +449,10 @@ Load it early
 #+BEGIN_SRC emacs-lisp
 (use-package org
   :hook (org-mode . (lambda ()
+                      (interactive)
                       (set-face-background 'org-block 'unspecified) ;; fix
+                      (set-face-background 'whitespace-empty 'unspecified) ;; fix
+                      (set-face-background 'whitespace-hspace 'unspecified) ;; fix
                       (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
                       (set-face-attribute 'org-link nil :inherit 'fixed-pitch)
                       (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
@@ -1115,16 +1194,18 @@ These are not loaded, only compliled. Load manualy with ~M-x~.
 		   input)))))
        (read
 	(replace-regexp-in-string "," ""
-				  (progn
-				    (goto-char (point-min))
-				    (re-search-forward "\(" (point-max) t 2)
-				    (backward-char 1)
-				    (forward-sexp)
-				    (buffer-substring-no-properties
-				     (1- (match-end 0)) (point)))))))
+                                  (progn
+                                    (goto-char (point-min))
+                                    (re-search-forward "\(" (point-max) t 2)
+                                    (backward-char 1)
+                                    (forward-sexp)
+                                    (buffer-substring-no-properties
+                                     (1- (match-end 0)) (point)))))))
 
 (use-package! google-this
   :diminish t
+  :custom
+  (google-this-base-url "https://m.google.")
   :config
   (google-this-mode 1))
 
