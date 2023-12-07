@@ -8,11 +8,11 @@
 
 We are doing /declarative literate programming/, so do write everything down in plain English.
 
-The main principle is to /re-use/ and to indirectly /delegate/ compatibility concerns.
+The main principle is to /reuse/ the code and to indirectly /delegate/ compatibility concerns.
 
-/Doom Emacs/, being a rewrite of /Spacemacs/, has a lot of effort behind it. So, lets use it.
+/Doom Emacs/, being a rewrite of /Spacemacs/, has a lot of effort behind it. So, lets reuse it.
 
-/Doom Emacs/ developers created a consistent look with ~doom-themes~, so use it too.
+/Doom Emacs/ developers created a consistent look with ~doom-themes~, so use them too.
 
 *Do not overconfigure*. /They/ have already done it. Just add a few bits here and there.
 
@@ -439,6 +439,13 @@ This reinforces good practices of using the proper classic key bindings.
 
 (setq epa-file-encrypt-to "B5BCA34F13278C5B")
 #+END_SRC
+* pandoc
+#+begin_src emacs-lisp :tangle packages.el
+(package! pandoc-mode)
+#+end_src
+#+BEGIN_SRC emacs-lisp
+(use-package! pandoc-mode)
+#+END_SRC
 * org-mode
 Use a newer version than built in.
 
@@ -754,15 +761,21 @@ Configuration
       doom-serif-font (font-spec :family "SF Pro Display" :weight 'light))
 #+END_SRC
 * Theme
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+(package! tokyo-theme :recipe (:host github :repo
+"rawleyfowler/tokyo-theme.el"))
+(package! ef-themes)
+#+END_SRC
+
 #+BEGIN_SRC emacs-lisp
-(setq doom-theme 'doom-nord)
+(setq doom-theme 'doom-tokyo-night)
 
 (use-package! doom-themes
     :config
     ;; Global settings (defaults)
     (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
 	  doom-themes-enable-italic t) ; if nil, italics is universally disabled
-    (load-theme 'doom-nord t))
+    (load-theme 'doom-tokyo-night t))
 
 (solaire-global-mode +1)
 #+END_SRC
@@ -933,6 +946,26 @@ For ease of use, let's also set up an easy way of setting the ~:font~ attribute.
           python-shell-interpreter-args "-i --simple-prompt"
           python-shell-prompt-detect-failure-warning nil))
 #+end_src
+* Erlang
+#+BEGIN_SRC emacs-lisp :tangle packages.el
+  (package! erlang :disable t)
+  (package! otp :disable t)
+#+END_SRC
+#+BEGIN_SRC emacs-lisp
+  (use-package erlang
+  :load-path (lambda () (car (file-expand-wildcards "/usr/lib64/erlang/lib/tools-*/emacs")))
+  :hook (erlang-mode . flymake-mode)
+  :hook (erlang-mode . flycheck-mode)
+  :hook (erlang-mode . lsp)
+  :config
+  ;; prevent annoying hang-on-compile
+  (defvar inferior-erlang-prompt-timeout t)
+  ;; default node name to emacs@localhost
+  (setq inferior-erlang-machine-options '("-sname" "emacs"))
+  (setq erlang-root-dir "/usr/lib64/erlang")
+  (setq lsp-ui-doc-enable t)
+  (require 'erlang-start))
+#+END_SRC
 * Octave
 #+begin_src emacs-lisp
 (use-package! octave-mode
